@@ -96,7 +96,7 @@ func (s *Server) distributorLoop() {
 		for packet := range s.queue {
 			switch packet.Kind() {
 			case Ping:
-				go s.pong(s.targetFromSequnce(packet.Sequnce()), packet)
+				go s.pong(packet)
 			case Pong:
 				r := BroadResponse{
 					Sender: s.targetFromSequnce(packet.Sequnce()),
@@ -104,7 +104,7 @@ func (s *Server) distributorLoop() {
 				}
 				s.beater.Put(r)
 			case Join:
-				go s.join(s.targetFromSequnce(packet.Sequnce()), packet)
+				go s.join(packet)
 			case Find:
 				go s.find()
 			default:
@@ -140,7 +140,8 @@ func Send(conn *net.UDPConn, target *net.UDPAddr, packet Packet) error {
 	return nil
 }
 
-func (s *Server) pong(target *net.UDPAddr, packet Packet) {
+func (s *Server) pong(packet Packet) {
+	target := s.targetFromSequnce(packet.Sequnce())
 	p := new(PongPacket)
 	p.SetSequnce(packet.Sequnce())
 	p.SetKind(Pong)
@@ -149,7 +150,8 @@ func (s *Server) pong(target *net.UDPAddr, packet Packet) {
 	}
 }
 
-func (s *Server) join(target *net.UDPAddr, packet Packet) {
+func (s *Server) join(packet Packet) {
+	target := s.targetFromSequnce(packet.Sequnce())
 	jp, ok := packet.(*JoinPacket)
 	if !ok {
 		fmt.Println("server: invalid packet in s.join")
