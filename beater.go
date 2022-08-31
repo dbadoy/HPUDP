@@ -18,19 +18,19 @@ type Beater struct {
 	conn    *net.UDPConn
 	pingRes map[string]bool
 
-	d  chan BroadRequest
+	d  chan BroadResponse
 	mu sync.Mutex
 }
 
-func NewBeater(conn *net.UDPConn) *Beater {
-	return &Beater{
+func NewBeater(conn *net.UDPConn) Beater {
+	return Beater{
 		conn:    conn,
 		pingRes: make(map[string]bool),
-		d:       make(chan BroadRequest),
+		d:       make(chan BroadResponse),
 	}
 }
 
-func (b *Beater) Put(r BroadRequest) {
+func (b *Beater) Put(r BroadResponse) {
 	b.d <- r
 }
 

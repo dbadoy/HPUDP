@@ -20,7 +20,7 @@ type Packet interface {
 	Kind() byte
 }
 
-type BroadRequest struct {
+type BroadResponse struct {
 	Sender *net.UDPAddr
 	P      Packet
 }

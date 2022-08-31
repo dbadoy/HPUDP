@@ -41,7 +41,6 @@ type Server struct {
 	// This is for that split the dispatch packet, processing packet.
 	queue chan Packet
 
-	//
 	beater Beater
 
 	mu sync.Mutex
@@ -99,7 +98,7 @@ func (s *Server) distributorLoop() {
 			case Ping:
 				go s.pong(s.targetFromSequnce(packet.Sequnce()), packet)
 			case Pong:
-				r := BroadRequest{
+				r := BroadResponse{
 					Sender: s.targetFromSequnce(packet.Sequnce()),
 					P:      packet,
 				}
@@ -141,7 +140,7 @@ func Send(conn *net.UDPConn, target *net.UDPAddr, packet Packet) error {
 	return nil
 }
 
-func (s *Sever) pong(target *net.UDPAddr, packet Packet) {
+func (s *Server) pong(target *net.UDPAddr, packet Packet) {
 	p := new(PongPacket)
 	p.SetSequnce(packet.Sequnce())
 	p.SetKind(Pong)
