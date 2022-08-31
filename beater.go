@@ -87,8 +87,10 @@ func (b *Beater) ping(addrs []*net.UDPAddr) {
 		case <-timer.C:
 			break
 		case r := <-b.d:
-			rawAddr := (*r.Sender).String()
-			b.pingRes[rawAddr] = true
+			if r.P.Kind() == Pong {
+				rawAddr := (*r.Sender).String()
+				b.pingRes[rawAddr] = true
+			}
 		}
 	}
 }
