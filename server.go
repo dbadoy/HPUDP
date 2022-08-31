@@ -39,7 +39,7 @@ type Server struct {
 
 	// 'queue' is the channel recv the packets. This channel limit size is 256.
 	// This is for that split the dispatch packet, processing packet.
-	queue chan Request
+	queue chan Packet
 
 	//
 	beater Beater
@@ -99,7 +99,11 @@ func (s *Server) distributorLoop() {
 			case Ping:
 				go s.pong(s.targetFromSequnce(packet.Sequnce()), packet)
 			case Pong:
-				// s
+				r := BroadRequest{
+					Sender: s.targetFromSequnce(packet.Sequnce()),
+					P:      packet,
+				}
+				s.beater.Put(r)
 			case Join:
 				go s.join(s.targetFromSequnce(packet.Sequnce()), packet)
 			case Find:

@@ -18,7 +18,7 @@ type Beater struct {
 	conn    *net.UDPConn
 	pingRes map[string]bool
 
-	d  chan Request
+	d  chan BroadRequest
 	mu sync.Mutex
 }
 
@@ -26,8 +26,12 @@ func NewBeater(conn *net.UDPConn) *Beater {
 	return &Beater{
 		conn:    conn,
 		pingRes: make(map[string]bool),
-		d:       make(chan Request),
+		d:       make(chan BroadRequest),
 	}
+}
+
+func (b *Beater) Put(r BroadRequest) {
+	b.d <- r
 }
 
 func (b *Beater) Register(addr *net.UDPAddr) {
@@ -53,6 +57,9 @@ func (b *Beater) Broadcast(t byte) {
 	addrs := make([]*net.UDPAddr, len(targets))
 	for _, target := range targets {
 		addrs = append(addrs, rawAddrToUDPAddr(target))
+	}
+	if len(addrs) == 0 {
+		return
 	}
 	switch t {
 	case PingType:

@@ -1,4 +1,4 @@
-package udphp
+package hpudp
 
 import (
 	"encoding/json"
@@ -20,9 +20,9 @@ type Packet interface {
 	Kind() byte
 }
 
-type Request struct {
-	p      Packet
-	sender *net.UDPAddr
+type BroadRequest struct {
+	Sender *net.UDPAddr
+	P      Packet
 }
 
 type (
