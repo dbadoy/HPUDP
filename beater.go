@@ -15,8 +15,11 @@ const (
 )
 
 type Beater struct {
-	conn    *net.UDPConn
-	pingRes map[string]bool
+	conn *net.UDPConn
+
+	// 'peers' mapping rawAddress to health status.
+	// The health status set when the ping-pong request completes
+	peers map[string]bool
 
 	d  chan BroadResponse
 	mu sync.Mutex
@@ -24,9 +27,9 @@ type Beater struct {
 
 func NewBeater(conn *net.UDPConn) Beater {
 	return Beater{
-		conn:    conn,
-		pingRes: make(map[string]bool),
-		d:       make(chan BroadResponse),
+		conn:  conn,
+		peers: make(map[string]bool),
+		d:     make(chan BroadResponse),
 	}
 }
 
@@ -35,16 +38,16 @@ func (b *Beater) Put(r BroadResponse) {
 }
 
 func (b *Beater) Register(addr *net.UDPAddr) {
-	if b.pingRes[addr.String()] {
+	if b.peers[addr.String()] {
 		return
 	}
-	b.pingRes[addr.String()] = false
+	b.peers[addr.String()] = false
 }
 
 func (b *Beater) snap() (r []string) {
 	b.mu.Lock()
-	r = make([]string, len(b.pingRes))
-	for raw, _ := range b.pingRes {
+	r = make([]string, len(b.peers))
+	for raw, _ := range b.peers {
 		r = append(r, raw)
 	}
 	b.mu.Unlock()
@@ -89,7 +92,7 @@ func (b *Beater) ping(addrs []*net.UDPAddr) {
 		case r := <-b.d:
 			if r.P.Kind() == Pong {
 				rawAddr := (*r.Sender).String()
-				b.pingRes[rawAddr] = true
+				b.peers[rawAddr] = true
 			}
 		}
 	}
