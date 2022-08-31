@@ -2,7 +2,6 @@ package hpudp
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net"
 	"sync"
@@ -106,7 +105,7 @@ func (s *Server) distributorLoop() {
 			case Join:
 				go s.join(packet)
 			case Find:
-				go s.find()
+				go s.find(packet)
 			default:
 				// should not enter this case
 			}
@@ -128,7 +127,6 @@ func (s *Server) Sequnce() uint32 {
 	return atomic.LoadUint32(&s.seq)
 }
 
-// TODO:
 func Send(conn *net.UDPConn, target *net.UDPAddr, packet Packet) error {
 	b, err := json.Marshal(packet)
 	if err != nil {
@@ -184,6 +182,21 @@ func (s *Server) join(packet Packet) {
 	}
 }
 
-func (s *Server) find() error {
-	return errors.New("not implement")
+func (s *Server) find(packet Packet) {
+	target := s.targetFromSequnce(packet.Sequnce())
+	fp, ok := packet.(*FindPacket)
+	if !ok {
+		fmt.Println("server: invalid packet in s.find")
+		return
+	}
+	fid := fp.FindID
+	found := s.users[fid]
+	if found != nil {
+		// is pointer ok?
+		fp.Founded = found
+	}
+	if err := Send(s.conn, target, fp); err != nil {
+		fmt.Println(err)
+		return
+	}
 }
