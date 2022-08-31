@@ -39,7 +39,10 @@ type Server struct {
 
 	// 'queue' is the channel recv the packets. This channel limit size is 256.
 	// This is for that split the dispatch packet, processing packet.
-	queue chan Packet
+	queue chan Request
+
+	//
+	beater Beater
 
 	mu sync.Mutex
 	wg sync.WaitGroup
@@ -56,6 +59,7 @@ func NewServer(addr *net.UDPAddr) *Server {
 		exists: make(map[string]ID),
 		req:    make(map[uint32]*net.UDPAddr),
 		queue:  make(chan Packet, QueueLimit),
+		beater: NewBeater(conn),
 	}
 }
 
@@ -93,9 +97,9 @@ func (s *Server) distributorLoop() {
 		for packet := range s.queue {
 			switch packet.Kind() {
 			case Ping:
-				go s.ping(s.targetFromSequnce(packet.Sequnce()), packet)
-			// case Pong:
-			// 	go pong()
+				go s.pong(s.targetFromSequnce(packet.Sequnce()), packet)
+			case Pong:
+				// s
 			case Join:
 				go s.join(s.targetFromSequnce(packet.Sequnce()), packet)
 			case Find:
@@ -133,19 +137,13 @@ func Send(conn *net.UDPConn, target *net.UDPAddr, packet Packet) error {
 	return nil
 }
 
-// TODO: error handle
-func (s *Server) ping(target *net.UDPAddr, packet Packet) {
+func (s *Sever) pong(target *net.UDPAddr, packet Packet) {
 	p := new(PongPacket)
 	p.SetSequnce(packet.Sequnce())
 	p.SetKind(Pong)
-
 	if err := Send(s.conn, target, p); err != nil {
 		fmt.Println("server: send failed " + err.Error())
 	}
-}
-
-func pong() error {
-	return errors.New("not implement")
 }
 
 func (s *Server) join(target *net.UDPAddr, packet Packet) {
@@ -169,7 +167,10 @@ func (s *Server) join(target *net.UDPAddr, packet Packet) {
 	s.mu.Lock()
 	s.exists[target.String()] = id
 	s.mu.Unlock()
+
 	s.users[id] = target
+	s.beater.Register(target)
+
 	jp.Response = true
 	jp.UserID = id
 	if err := Send(s.conn, target, jp); err != nil {

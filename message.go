@@ -20,6 +20,11 @@ type Packet interface {
 	Kind() byte
 }
 
+type Request struct {
+	p      Packet
+	sender *net.UDPAddr
+}
+
 type (
 	PingPacket struct {
 		seq  uint32
