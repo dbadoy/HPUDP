@@ -91,24 +91,22 @@ func (s *Server) detectLoop() {
 func (s *Server) distributorLoop() {
 	defer s.wg.Done()
 
-	for {
-		for packet := range s.queue {
-			switch packet.Kind() {
-			case Ping:
-				go s.pong(packet)
-			case Pong:
-				r := BroadResponse{
-					Sender: s.targetFromSequnce(packet.Sequnce()),
-					P:      packet,
-				}
-				s.beater.Put(r)
-			case Join:
-				go s.join(packet)
-			case Find:
-				go s.find(packet)
-			default:
-				// should not enter this case
+	for packet := range s.queue {
+		switch packet.Kind() {
+		case Ping:
+			go s.pong(packet)
+		case Pong:
+			r := BroadResponse{
+				Sender: s.targetFromSequnce(packet.Sequnce()),
+				P:      packet,
 			}
+			s.beater.Put(r)
+		case Join:
+			go s.join(packet)
+		case Find:
+			go s.find(packet)
+		default:
+			// should not enter this case
 		}
 	}
 }
