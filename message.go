@@ -68,6 +68,9 @@ func ParsePacket(seq uint32, d []byte) (Packet, error) {
 	default:
 		return nil, errors.New("invalid packet type")
 	}
+	// The recv message format like this: PacketSize + PacketType + Payload
+	// [TODO: InternalIP + PacketSize + PacketType + Payload]
+	// This is the logic for parse the Payload
 	len := d[packetSizeIndex]
 	byt := make([]byte, len)
 	copy(byt[:], d[PrefixSize:PrefixSize+len])
@@ -79,6 +82,9 @@ func ParsePacket(seq uint32, d []byte) (Packet, error) {
 	return r, nil
 }
 
+// SuitablePack is change Packet to suitable protocol message.
+// If send message, you must use this method.
+// [TODO: add InternalIP]
 func SuitablePack(packet Packet) ([]byte, error) {
 	b, err := json.Marshal(packet)
 	if err != nil {
