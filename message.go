@@ -68,14 +68,9 @@ func ParsePacket(seq uint32, d []byte) (Packet, error) {
 	default:
 		return nil, errors.New("invalid packet type")
 	}
-	// The recv message format like this: PacketSize + PacketType + Payload
-	// [TODO: InternalIP + PacketSize + PacketType + Payload]
-	// This is the logic for parse the Payload
-	len := d[packetSizeIndex]
-	byt := make([]byte, len)
-	copy(byt[:], d[PrefixSize:PrefixSize+len])
-	if err := json.Unmarshal(byt, r); err != nil {
-		return nil, errors.New("invalid packet data")
+
+	if err := SuitableUnpack(d, r); err != nil {
+		return nil, err
 	}
 	r.SetSequnce(seq)
 	r.SetKind(d[packetTypeIndex])
@@ -95,6 +90,19 @@ func SuitablePack(packet Packet) ([]byte, error) {
 	result[packetTypeIndex] = packet.Kind()
 	copy(result[2:], b[:])
 	return result, nil
+}
+
+// The recv message format like this: PacketSize + PacketType + Payload
+// [TODO: InternalIP + PacketSize + PacketType + Payload]
+// This is the logic for parse the Payload
+func SuitableUnpack(b []byte, packet Packet) error {
+	len := b[packetSizeIndex]
+	byt := make([]byte, len)
+	copy(byt[:], b[PrefixSize:PrefixSize+len])
+	if err := json.Unmarshal(byt, packet); err != nil {
+		return errors.New("invalid packet data")
+	}
+	return nil
 }
 
 func (p *PingPacket) Sequnce() uint32       { return p.seq }
