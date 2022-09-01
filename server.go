@@ -85,14 +85,17 @@ func (s *Server) detectLoop() {
 			continue
 		}
 		s.req[s.NextSequnce()] = sender
-		go func() {
-			packet, err := ParsePacket(s.Sequnce(), b)
+		
+		// Get sequence number when before start goroutine.
+		// Not after started goroutine. It may not thread safety.
+		go func(seq uint32) {
+			packet, err := ParsePacket(seq, b)
 			if err != nil {
 				fmt.Printf("detected invalid protocol, reason : %v\n", err)
 				return
 			}
 			s.queue <- packet
-		}()
+		}(s.Sequnce())
 	}
 }
 
