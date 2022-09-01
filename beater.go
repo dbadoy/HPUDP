@@ -33,6 +33,7 @@ func NewBeater(conn *net.UDPConn) Beater {
 	}
 }
 
+// TODO: Is it best?
 func (b *Beater) Put(r BroadResponse) {
 	b.d <- r
 }
@@ -44,7 +45,41 @@ func (b *Beater) Register(addr *net.UDPAddr) {
 	b.peers[addr.String()] = false
 }
 
-func (b *Beater) snap() (r []string) {
+func (b *Beater) BroadcastPing(timeout time.Duration) {
+	b.broadcastPing(timeout)
+}
+
+func (b *Beater) BroadcastPingWithTicker(ticker time.Ticker, per time.Duration) chan struct{} {
+	var cancel chan struct{}
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				b.broadcastPing(per)
+			case <-cancel:
+				return
+			}
+		}
+	}()
+	return cancel
+}
+
+func (b *Beater) broadcastPing(timeout time.Duration) {
+	if timeout == 0 {
+		timeout = 5 * time.Second
+	}
+	b.broadcast(PingType, timeout)
+}
+
+func (b *Beater) IsAlive(raw string) bool {
+	return b.snapPingTable()[raw]
+}
+
+func (b *Beater) PingTable() map[string]bool {
+	return b.snapPingTable()
+}
+
+func (b *Beater) snapTargets() (r []string) {
 	b.mu.Lock()
 	r = make([]string, len(b.peers)/2)
 	for raw, _ := range b.peers {
@@ -54,8 +89,19 @@ func (b *Beater) snap() (r []string) {
 	return
 }
 
-func (b *Beater) Broadcast(t byte) {
-	targets := b.snap()
+func (b *Beater) snapPingTable() (r map[string]bool) {
+	b.mu.Lock()
+	r = make(map[string]bool, len(b.peers))
+	// It really need deep copy ?
+	for addr, health := range b.peers {
+		r[addr] = health
+	}
+	b.mu.Unlock()
+	return
+}
+
+func (b *Beater) broadcast(t byte, timeout time.Duration) {
+	targets := b.snapTargets()
 
 	addrs := make([]*net.UDPAddr, len(targets))
 	for _, target := range targets {
@@ -66,13 +112,13 @@ func (b *Beater) Broadcast(t byte) {
 	}
 	switch t {
 	case PingType:
-		b.ping(addrs)
+		b.ping(addrs, timeout)
 	case NotificationType:
 		b.notification(addrs)
 	}
 }
 
-func (b *Beater) ping(addrs []*net.UDPAddr) {
+func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 	for _, addr := range addrs {
 		packet := new(PingPacket)
 		packet.SetKind(Ping)
@@ -84,7 +130,7 @@ func (b *Beater) ping(addrs []*net.UDPAddr) {
 		}
 	}
 
-	timer := time.NewTimer(5 * time.Second)
+	timer := time.NewTimer(timeout)
 	for {
 		select {
 		case <-timer.C:
