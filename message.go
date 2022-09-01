@@ -11,6 +11,10 @@ const (
 	Pong
 	Join
 	Find
+
+	PrefixSize      = 2
+	packetSizeIndex = 0
+	packetTypeIndex = 1
 )
 
 type Packet interface {
@@ -46,13 +50,13 @@ type (
 		kind         byte
 		FindID       ID
 		FindNickName string
-		Founded      net.Addr
+		Founded      string
 	}
 )
 
-func ParsePacket(seq uint32, p byte, d []byte) (Packet, error) {
+func ParsePacket(seq uint32, d []byte) (Packet, error) {
 	var r Packet
-	switch p {
+	switch d[packetTypeIndex] {
 	case Ping:
 		r = new(PingPacket)
 	case Pong:
@@ -64,12 +68,27 @@ func ParsePacket(seq uint32, p byte, d []byte) (Packet, error) {
 	default:
 		return nil, errors.New("invalid packet type")
 	}
-	if err := json.Unmarshal(d, r); err != nil {
+	len := d[packetSizeIndex]
+	byt := make([]byte, len)
+	copy(byt[:], d[PrefixSize:PrefixSize+len])
+	if err := json.Unmarshal(byt, r); err != nil {
 		return nil, errors.New("invalid packet data")
 	}
 	r.SetSequnce(seq)
-	r.SetKind(p)
+	r.SetKind(d[packetTypeIndex])
 	return r, nil
+}
+
+func SuitablePack(packet Packet) ([]byte, error) {
+	b, err := json.Marshal(packet)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]byte, len(b)+PrefixSize)
+	result[packetSizeIndex] = byte(len(b))
+	result[packetTypeIndex] = packet.Kind()
+	copy(result[2:], b[:])
+	return result, nil
 }
 
 func (p *PingPacket) Sequnce() uint32       { return p.seq }

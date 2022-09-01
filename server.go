@@ -1,7 +1,6 @@
 package hpudp
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"sync"
@@ -14,11 +13,6 @@ const (
 
 	// No basis. need to be considered
 	QueueLimit = 4096
-
-	//
-	packetSizeIndex = 0
-	packetTypeIndex = 1
-	prefixSize      = 2
 )
 
 type Server struct {
@@ -91,10 +85,8 @@ func (s *Server) detectLoop() {
 			continue
 		}
 		s.req[s.NextSequnce()] = sender
-		// It's work?
 		go func() {
-			packetSize := b[packetSizeIndex]
-			packet, err := ParsePacket(s.Sequnce(), b[packetTypeIndex], b[prefixSize:prefixSize+packetSize])
+			packet, err := ParsePacket(s.Sequnce(), b)
 			if err != nil {
 				fmt.Printf("detected invalid protocol, reason : %v\n", err)
 				return
@@ -142,11 +134,11 @@ func (s *Server) Sequnce() uint32 {
 }
 
 func Send(conn *net.UDPConn, target *net.UDPAddr, packet Packet) error {
-	b, err := json.Marshal(packet)
+	result, err := SuitablePack(packet)
 	if err != nil {
 		return err
 	}
-	if _, err := conn.WriteToUDP(b, target); err != nil {
+	if _, err := conn.WriteToUDP(result, target); err != nil {
 		return err
 	}
 	return nil
@@ -207,7 +199,7 @@ func (s *Server) find(packet Packet) {
 	found := s.users[fid]
 	if found != nil {
 		// is pointer ok?
-		fp.Founded = found
+		fp.Founded = found.String()
 	}
 	if err := Send(s.conn, target, fp); err != nil {
 		fmt.Println(err)
