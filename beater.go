@@ -29,7 +29,7 @@ func NewBeater(conn *net.UDPConn) Beater {
 	return Beater{
 		conn:  conn,
 		peers: make(map[string]bool),
-		d:     make(chan BroadResponse),
+		d:     make(chan BroadResponse, 512),
 	}
 }
 
@@ -46,7 +46,7 @@ func (b *Beater) Register(addr *net.UDPAddr) {
 
 func (b *Beater) snap() (r []string) {
 	b.mu.Lock()
-	r = make([]string, len(b.peers))
+	r = make([]string, len(b.peers)/2)
 	for raw, _ := range b.peers {
 		r = append(r, raw)
 	}
@@ -76,7 +76,7 @@ func (b *Beater) ping(addrs []*net.UDPAddr) {
 	for _, addr := range addrs {
 		packet := new(PingPacket)
 		packet.SetKind(Ping)
-		byt, _ := json.Marshal(packet)
+		byt, _ := json.Marshal(&packet)
 
 		if _, err := b.conn.WriteToUDP(byt, addr); err != nil {
 			// TODO
@@ -88,7 +88,7 @@ func (b *Beater) ping(addrs []*net.UDPAddr) {
 	for {
 		select {
 		case <-timer.C:
-			break
+			return
 		case r := <-b.d:
 			if r.P.Kind() == Pong {
 				rawAddr := (*r.Sender).String()
