@@ -14,6 +14,11 @@ const (
 
 	// No basis. need to be considered
 	QueueLimit = 4096
+
+	//
+	packetSizeIndex = 0
+	packetTypeIndex = 1
+	prefixSize      = 2
 )
 
 type Server struct {
@@ -47,8 +52,9 @@ type Server struct {
 }
 
 func NewServer(addr *net.UDPAddr) *Server {
-	conn, err := net.DialUDP("temp", addr, addr)
+	conn, err := net.ListenUDP("udp", addr)
 	if err != nil {
+		fmt.Println(err)
 		return nil
 	}
 	return &Server{
@@ -61,24 +67,34 @@ func NewServer(addr *net.UDPAddr) *Server {
 	}
 }
 
+func (s *Server) Start() {
+	fmt.Println(s.conn.LocalAddr())
+	s.wg.Add(2)
+
+	go s.detectLoop()
+	go s.distributeLoop()
+
+	s.wg.Wait()
+}
+
 func (s *Server) detectLoop() {
 	defer s.wg.Done()
 
 	for {
-		var b []byte
+		b := make([]byte, MaxPacketSize)
 		size, sender, err := s.conn.ReadFromUDP(b)
-		if err != nil {
-			fmt.Printf("server: ReadFromUDP error: %v", err)
+		if size == 0 {
 			continue
 		}
-		if size > MaxPacketSize {
-			fmt.Printf("server: exeed MaxPacketSize, got: %v, limit: %v", size, MaxPacketSize)
+		if err != nil {
+			fmt.Printf("server: ReadFromUDP error: %v", err)
 			continue
 		}
 		s.req[s.NextSequnce()] = sender
 		// It's work?
 		go func() {
-			packet, err := ParsePacket(s.Sequnce(), b[0], b[1:])
+			packetSize := b[packetSizeIndex]
+			packet, err := ParsePacket(s.Sequnce(), b[packetTypeIndex], b[prefixSize:prefixSize+packetSize])
 			if err != nil {
 				fmt.Printf("detected invalid protocol, reason : %v\n", err)
 				return
@@ -88,7 +104,7 @@ func (s *Server) detectLoop() {
 	}
 }
 
-func (s *Server) distributorLoop() {
+func (s *Server) distributeLoop() {
 	defer s.wg.Done()
 
 	for packet := range s.queue {
