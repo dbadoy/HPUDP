@@ -55,7 +55,7 @@ func (b *Beater) BroadcastPingWithTicker(ticker time.Ticker, per time.Duration) 
 		for {
 			select {
 			case <-ticker.C:
-				// If 'per' greater than ticket duration, ticker wait broadcasePing end.
+				// If 'per' greater than ticket duration, ticker wait broadcasePing done.
 				// Do not call broadcastPing by goroutine. If you use goroutine, will accumulate
 				// meaningless running goroutines.
 				b.broadcastPing(per)
