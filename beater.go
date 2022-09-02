@@ -147,15 +147,15 @@ func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 		select {
 		case <-timer.C:
 			for rawAdrr := range tempSnapTable {
-				// FIX #1: concurrent error : duplicated write on map
+				b.mu.Lock()
 				b.peers[rawAdrr] = false
+				b.mu.Unlock()
 			}
 			fmt.Println(b.PingTable())
 			return
 		case r := <-b.d:
 			if r.P.Kind() == Pong {
 				rawAddr := (*r.Sender).String()
-				// FIX #1: concurrent error : duplicated write on map
 				b.peers[rawAddr] = true
 				delete(tempSnapTable, rawAddr)
 			}
