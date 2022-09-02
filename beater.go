@@ -38,32 +38,36 @@ func (b *Beater) Put(r BroadResponse) {
 	b.d <- r
 }
 
+// Register is register to broadcast list that input address.
 func (b *Beater) Register(addr *net.UDPAddr) {
 	b.mu.Lock()
+	defer b.mu.Unlock()
 	if b.peers[addr.String()] {
 		return
 	}
 	b.peers[addr.String()] = false
-	b.mu.Unlock()
 }
 
+// Unregister is remove input address from broadcast list.
 func (b *Beater) Unregister(addr *net.UDPAddr) {
 	b.mu.Lock()
+	defer b.mu.Unlock()
 	delete(b.peers, addr.String())
-	b.mu.Unlock()
 }
 
+// Send broadcast only once.
 func (b *Beater) BroadcastPing(timeout time.Duration) {
 	b.broadcastPing(timeout)
 }
 
+// Send broadcast with ticker.
 func (b *Beater) BroadcastPingWithTicker(ticker time.Ticker, per time.Duration) chan struct{} {
 	var cancel chan struct{}
 	go func() {
 		for {
 			select {
 			case <-ticker.C:
-				// If 'per' greater than ticket duration, ticker wait broadcasePing done.
+				// If 'per' greater than ticker duration, ticker wait broadcasePing done.
 				// Do not call broadcastPing by goroutine. If you use goroutine, will accumulate
 				// meaningless running goroutines.
 				b.broadcastPing(per)
@@ -84,21 +88,25 @@ func (b *Beater) broadcastPing(timeout time.Duration) {
 }
 
 func (b *Beater) IsAlive(raw string) bool {
-	return b.snapPingTable()[raw]
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.peers[raw]
 }
 
 func (b *Beater) PingTable() map[string]bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
 	return b.snapPingTable()
 }
 
+// snapPingTable returns deep copied snapshot about broadcast list.
+//
+// The caller must hold b.mu.
 func (b *Beater) snapPingTable() (r map[string]bool) {
-	b.mu.Lock()
 	r = make(map[string]bool, len(b.peers))
-	// It really need deep copy ?
 	for addr, health := range b.peers {
 		r[addr] = health
 	}
-	b.mu.Unlock()
 	return
 }
 
@@ -135,7 +143,11 @@ func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 		}
 	}
 
+	// The snapshot that marking the changed peer status. If get 'pong',
+	// remove sender from snapshot. This means that peers that did not
+	// send a response to the PING remain in the snapshot.
 	tempSnapTable := b.snapPingTable()
+
 	timer := time.NewTimer(timeout)
 	for {
 		select {
@@ -145,7 +157,8 @@ func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 				b.peers[rawAdrr] = false
 				b.mu.Unlock()
 			}
-			fmt.Println(b.PingTable())
+			// Logging for test.
+			fmt.Println(b.snapPingTable())
 			return
 		case r := <-b.d:
 			if r.P.Kind() == Pong {
