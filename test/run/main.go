@@ -37,5 +37,4 @@ func main() {
 	if server != nil {
 		server.Start()
 	}
-	fmt.Println("failed")
 }
