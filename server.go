@@ -69,6 +69,7 @@ func (s *Server) Start() {
 	go s.detectLoop()
 	go s.distributeLoop()
 
+	// TODO: add Config in params
 	ticker := time.NewTicker(5 * time.Second)
 	cancel := s.beater.BroadcastPingWithTicker(*ticker, 3*time.Second)
 	_ = cancel
@@ -141,6 +142,8 @@ func (s *Server) NextSequnce() uint32 {
 	return atomic.AddUint32(&s.seq, 1)
 }
 
+// This may not work what I want.
+// Need to be fix.
 func (s *Server) Sequnce() uint32 {
 	return atomic.LoadUint32(&s.seq)
 }
