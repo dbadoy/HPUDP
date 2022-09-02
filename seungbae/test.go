@@ -74,6 +74,17 @@ func Join(conn *net.UDPConn) {
 	var in hpudp.JoinPacket
 	json.Unmarshal(m, &in)
 	fmt.Println(in)
+
+	pong := new(hpudp.PongPacket)
+	pong.SetKind(hpudp.Pong)
+	b3, _ := json.Marshal(&pong)
+	b4 := make([]byte, len(b3)+2)
+	b4[0] = byte(len(b3))
+	b4[1] = hpudp.Pong
+	copy(b4[2:], b3[:])
+	if _, err = conn.WriteToUDP(pb2, &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: 8751}); err != nil {
+		fmt.Println(err)
+	}
 }
 
 func Find(conn *net.UDPConn) {
@@ -111,10 +122,10 @@ func Find(conn *net.UDPConn) {
 }
 
 func main() {
-	client, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: 8753})
+	client, err := net.ListenUDP("udp", &net.UDPAddr{IP: net.IP{127, 0, 0, 1}, Port: 8755})
 	if err != nil {
 		fmt.Println(err)
 		return
 	}
-	Ping(client)
+	Join(client)
 }

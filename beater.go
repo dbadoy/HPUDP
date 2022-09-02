@@ -45,6 +45,10 @@ func (b *Beater) Register(addr *net.UDPAddr) {
 	b.peers[addr.String()] = false
 }
 
+func (b *Beater) Unregister(addr *net.UDPAddr) {
+	delete(b.peers, addr.String())
+}
+
 func (b *Beater) BroadcastPing(timeout time.Duration) {
 	b.broadcastPing(timeout)
 }
@@ -72,7 +76,7 @@ func (b *Beater) broadcastPing(timeout time.Duration) {
 	if timeout == 0 {
 		timeout = 5 * time.Second
 	}
-	b.broadcast(PingType, timeout)
+	go b.broadcast(PingType, timeout)
 }
 
 func (b *Beater) IsAlive(raw string) bool {
@@ -85,7 +89,7 @@ func (b *Beater) PingTable() map[string]bool {
 
 func (b *Beater) snapTargets() (r []string) {
 	b.mu.Lock()
-	r = make([]string, len(b.peers)/2)
+	r = make([]string, 0, len(b.peers)/2)
 	for raw, _ := range b.peers {
 		r = append(r, raw)
 	}
@@ -107,11 +111,12 @@ func (b *Beater) snapPingTable() (r map[string]bool) {
 func (b *Beater) broadcast(t byte, timeout time.Duration) {
 	targets := b.snapTargets()
 
-	addrs := make([]*net.UDPAddr, len(targets))
+	addrs := make([]*net.UDPAddr, 0, len(targets))
 	for _, target := range targets {
 		addrs = append(addrs, rawAddrToUDPAddr(target))
 	}
 	if len(addrs) == 0 {
+		fmt.Println("beater: there is no target")
 		return
 	}
 	switch t {
@@ -129,21 +134,27 @@ func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 		byt, _ := json.Marshal(&packet)
 
 		if _, err := b.conn.WriteToUDP(byt, addr); err != nil {
-			// TODO
+			fmt.Println(err)
 			break
 		}
 	}
 
+	tempSnapTable := b.snapPingTable()
 	timer := time.NewTimer(timeout)
 	for {
 		select {
 		case <-timer.C:
+			for rawAdrr := range tempSnapTable {
+				b.peers[rawAdrr] = false
+			}
+			fmt.Println(b.PingTable())
 			return
 		case r := <-b.d:
 			if r.P.Kind() == Pong {
 				rawAddr := (*r.Sender).String()
 				// this is not thread safe. But seems OK to me. It'll not called by goroutines.
 				b.peers[rawAddr] = true
+				delete(tempSnapTable, rawAddr)
 			}
 		}
 	}

@@ -79,7 +79,7 @@ func ParsePacket(seq uint32, d []byte) (Packet, error) {
 
 // SuitablePack is change Packet to suitable protocol message.
 // If send message, you must use this method.
-// [TODO: add InternalIP]
+// [TODO: add LocalAddress]
 func SuitablePack(packet Packet) ([]byte, error) {
 	b, err := json.Marshal(packet)
 	if err != nil {
@@ -92,8 +92,11 @@ func SuitablePack(packet Packet) ([]byte, error) {
 	return result, nil
 }
 
-// The recv message format like this: PacketSize + PacketType + Payload
-// [TODO: InternalIP + PacketSize + PacketType + Payload]
+// The recv message format like blow,
+// Header: RemoteAddress / Payload: PacketSize + PacketType + Actual data
+//
+// TODO:
+// Header: RemoteAddress / Payload: LocalAddress + PacketSize + PacketType + Actual data
 // This is the logic for parse the Payload
 func SuitableUnpack(b []byte, packet Packet) error {
 	len := b[packetSizeIndex]

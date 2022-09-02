@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const (
@@ -68,6 +69,10 @@ func (s *Server) Start() {
 	go s.detectLoop()
 	go s.distributeLoop()
 
+	ticker := time.NewTicker(5 * time.Second)
+	cancel := s.beater.BroadcastPingWithTicker(*ticker, 3*time.Second)
+	_ = cancel
+
 	s.wg.Wait()
 }
 
@@ -85,7 +90,7 @@ func (s *Server) detectLoop() {
 			continue
 		}
 		s.req[s.NextSequnce()] = sender
-		
+
 		// Get sequence number when before start goroutine.
 		// Not after started goroutine. It may not thread safety.
 		go func(seq uint32) {
