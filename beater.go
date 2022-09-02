@@ -39,14 +39,18 @@ func (b *Beater) Put(r BroadResponse) {
 }
 
 func (b *Beater) Register(addr *net.UDPAddr) {
+	b.mu.Lock()
 	if b.peers[addr.String()] {
 		return
 	}
 	b.peers[addr.String()] = false
+	b.mu.Unlock()
 }
 
 func (b *Beater) Unregister(addr *net.UDPAddr) {
+	b.mu.Lock()
 	delete(b.peers, addr.String())
+	b.mu.Unlock()
 }
 
 func (b *Beater) BroadcastPing(timeout time.Duration) {
@@ -87,16 +91,6 @@ func (b *Beater) PingTable() map[string]bool {
 	return b.snapPingTable()
 }
 
-func (b *Beater) snapTargets() (r []string) {
-	b.mu.Lock()
-	r = make([]string, 0, len(b.peers)/2)
-	for raw, _ := range b.peers {
-		r = append(r, raw)
-	}
-	b.mu.Unlock()
-	return
-}
-
 func (b *Beater) snapPingTable() (r map[string]bool) {
 	b.mu.Lock()
 	r = make(map[string]bool, len(b.peers))
@@ -109,12 +103,12 @@ func (b *Beater) snapPingTable() (r map[string]bool) {
 }
 
 func (b *Beater) broadcast(t byte, timeout time.Duration) {
-	targets := b.snapTargets()
-
-	addrs := make([]*net.UDPAddr, 0, len(targets))
-	for _, target := range targets {
+	b.mu.Lock()
+	addrs := make([]*net.UDPAddr, 0, len(b.peers))
+	for target := range b.peers {
 		addrs = append(addrs, rawAddrToUDPAddr(target))
 	}
+	b.mu.Unlock()
 	if len(addrs) == 0 {
 		fmt.Println("beater: there is no target")
 		return

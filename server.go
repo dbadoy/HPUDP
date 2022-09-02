@@ -89,7 +89,9 @@ func (s *Server) detectLoop() {
 			fmt.Printf("server: ReadFromUDP error: %v", err)
 			continue
 		}
+		s.mu.Lock()
 		s.req[s.NextSequnce()] = sender
+		s.mu.Unlock()
 
 		// Get sequence number when before start goroutine.
 		// Not after started goroutine. It may not thread safety.
@@ -128,8 +130,10 @@ func (s *Server) distributeLoop() {
 }
 
 func (s *Server) targetFromSequnce(seq uint32) (addr *net.UDPAddr) {
-	defer delete(s.req, seq)
+	s.mu.Lock()
 	addr = s.req[seq]
+	delete(s.req, seq)
+	s.mu.Unlock()
 	return
 }
 
@@ -183,9 +187,9 @@ func (s *Server) join(packet Packet) {
 	id := GenerateID()
 	s.mu.Lock()
 	s.exists[target.String()] = id
+	s.users[id] = target
 	s.mu.Unlock()
 
-	s.users[id] = target
 	s.beater.Register(target)
 
 	jp.Response = true
@@ -204,7 +208,9 @@ func (s *Server) find(packet Packet) {
 		return
 	}
 	fid := fp.FindID
+	s.mu.Lock()
 	found := s.users[fid]
+	s.mu.Unlock()
 	if found != nil {
 		// is pointer ok?
 		fp.Founded = found.String()
