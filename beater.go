@@ -147,6 +147,7 @@ func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 		select {
 		case <-timer.C:
 			for rawAdrr := range tempSnapTable {
+				// FIX #1: concurrent error : duplicated write on map
 				b.peers[rawAdrr] = false
 			}
 			fmt.Println(b.PingTable())
@@ -154,7 +155,7 @@ func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 		case r := <-b.d:
 			if r.P.Kind() == Pong {
 				rawAddr := (*r.Sender).String()
-				// This is not thread safe. But seems OK to me. It'll not called by goroutines.
+				// FIX #1: concurrent error : duplicated write on map
 				b.peers[rawAddr] = true
 				delete(tempSnapTable, rawAddr)
 			}
