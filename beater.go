@@ -129,7 +129,7 @@ func (b *Beater) broadcast(t byte, timeout time.Duration) {
 
 func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 	for _, addr := range addrs {
-		// This can be use goroutine. But this way need mutex. :line 149, 157
+		// This can be use goroutine.
 		// I don't know better way about point of performance. Need basis.
 		packet := new(PingPacket)
 		packet.SetKind(Ping)
