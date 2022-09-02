@@ -142,6 +142,7 @@ func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 		case r := <-b.d:
 			if r.P.Kind() == Pong {
 				rawAddr := (*r.Sender).String()
+				// this is not thread safe. But seems OK to me. It'll not called by goroutines.
 				b.peers[rawAddr] = true
 			}
 		}
@@ -152,6 +153,9 @@ func (b *Beater) notification(addrs []*net.UDPAddr) {
 	fmt.Println("not implements")
 }
 
+// [Benchmark]
+//		net.ResolveUDPAddr									10000000                151.0 ns/op
+//		netip.MustParseAddrPort, net.UDPAddrFromAddrPort	10000000                62.55 ns/op
 func rawAddrToUDPAddr(s string) *net.UDPAddr {
 	rawAddr := netip.MustParseAddrPort(s)
 	return net.UDPAddrFromAddrPort(rawAddr)
