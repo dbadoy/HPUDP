@@ -150,7 +150,20 @@ func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 	// The snapshot that marking the changed peer status. If get 'pong',
 	// remove sender from snapshot. This means that peers that did not
 	// send a response to the PING remain in the snapshot.
+	b.mu.Lock()
 	tempSnapTable := b.snapPingTable()
+	b.mu.Unlock()
+
+	// This is the case that not requesting a heartbeat for all peers.
+	// For update only requested peers.
+	if len(addrs) != len(tempSnapTable) {
+		t := make(map[string]bool, len(addrs))
+		for _, addr := range addrs {
+			rawAddr := addr.String()
+			t[rawAddr] = tempSnapTable[rawAddr]
+		}
+		tempSnapTable = t
+	}
 
 	timer := time.NewTimer(timeout)
 	for {
