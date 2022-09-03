@@ -1,7 +1,6 @@
 package hpudp
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/netip"
@@ -53,6 +52,11 @@ func (b *Beater) Unregister(addr *net.UDPAddr) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	delete(b.peers, addr.String())
+}
+
+func (b *Beater) Ping(target *net.UDPAddr, timeout time.Duration) bool {
+	b.ping([]*net.UDPAddr{target}, timeout)
+	return b.IsAlive(target.String())
 }
 
 // Send broadcast only once.
@@ -135,7 +139,7 @@ func (b *Beater) ping(addrs []*net.UDPAddr, timeout time.Duration) {
 		// I don't know better way about point of performance. Need basis.
 		packet := new(PingPacket)
 		packet.SetKind(Ping)
-		byt, _ := json.Marshal(&packet)
+		byt, _ := SuitablePack(packet)
 
 		if _, err := b.conn.WriteToUDP(byt, addr); err != nil {
 			fmt.Println(err)
