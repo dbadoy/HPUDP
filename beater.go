@@ -32,9 +32,8 @@ func NewBeater(conn *net.UDPConn) Beater {
 	}
 }
 
-// TODO: Is it best?
-func (b *Beater) Put(r BroadResponse) {
-	b.d <- r
+func (b *Beater) ResponseChannel() chan BroadResponse {
+	return b.d
 }
 
 // Register is register to broadcast list that input address.

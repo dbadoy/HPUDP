@@ -119,7 +119,7 @@ func (s *Server) distributeLoop() {
 				Sender: s.targetFromSequnce(packet.Sequnce()),
 				P:      packet,
 			}
-			s.beater.Put(r)
+			s.beater.ResponseChannel() <- r
 		case Join:
 			go s.join(packet)
 		case Find:
